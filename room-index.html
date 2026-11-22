@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ROOM Xmas — 12/22</title>
+<style>
+  :root {
+    --cream: #fffaf3;
+    --gold: #e8c96b;
+    --ink: #4f4650;
+    --pink: #d97887;
+    --glass: rgba(255,255,255,.78);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#fbfaf8; }
+  body { font-family: Georgia, "Times New Roman", serif; color:var(--ink); }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+  .title {
+    position:fixed; left:22px; top:18px; z-index:10;
+    color:rgba(255,255,255,.96);
+    text-shadow:0 2px 14px rgba(70,50,60,.28);
+    pointer-events:none; user-select:none;
+  }
+  .title h1 { margin:0; font-weight:400; font-size:clamp(34px,4.5vw,66px); letter-spacing:.03em; }
+  .title .date { margin-top:8px; font-size:clamp(18px,2vw,30px); color:#f1d66d; letter-spacing:.12em; font-weight:600; }
+  .hint {
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+    z-index:10; padding:9px 16px; border-radius:999px;
+    background:rgba(255,255,255,.58); backdrop-filter:blur(10px);
+    color:#675d64; font-family:system-ui,sans-serif; font-size:12px;
+    box-shadow:0 5px 20px rgba(70,50,60,.10);
+    pointer-events:none; transition:opacity .5s ease;
+  }
+  .hint.hide { opacity:0; }
+  .veil {
+    position:fixed; inset:0; z-index:20; display:grid; place-items:center;
+    background:rgba(30,22,30,.16); backdrop-filter:blur(4px);
+    opacity:0; pointer-events:none; transition:opacity .28s ease;
+  }
+  .veil.show { opacity:1; pointer-events:auto; }
+  .card {
+    width:min(520px, calc(100vw - 32px)); max-height:calc(100vh - 48px);
+    overflow:auto; padding:30px 28px 24px; border-radius:24px;
+    background:rgba(255,252,248,.94); border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 24px 70px rgba(40,25,35,.25);
+    transform:translateY(18px) scale(.97); transition:transform .28s ease;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .veil.show .card { transform:translateY(0) scale(1); }
+  .close {
+    float:right; border:0; background:rgba(100,80,90,.08); color:#655a61;
+    width:34px; height:34px; border-radius:50%; cursor:pointer; font-size:20px;
+  }
+  .eyebrow { margin:0 0 7px; color:#bd8b38; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .card h2 { margin:0 44px 20px 0; color:#a33c43; font-family:Georgia,serif; font-weight:500; font-size:clamp(24px,5vw,36px); line-height:1.25; }
+  .meta { display:grid; gap:10px; margin:16px 0 24px; }
+  .row { display:flex; gap:14px; padding-bottom:9px; border-bottom:1px solid rgba(90,70,80,.10); }
+  .label { width:72px; flex:0 0 72px; color:#a08e97; font-size:13px; }
+  .value { color:#2f292b; font-size:14px; line-height:1.5; }
+  .youtube {
+    display:flex; justify-content:center; align-items:center; gap:9px;
+    width:100%; min-height:50px; border-radius:14px; text-decoration:none;
+    background:#b94747; color:white; font-weight:700; letter-spacing:.02em;
+    box-shadow:0 8px 18px rgba(185,71,71,.22); transition:transform .18s ease, filter .18s ease;
+  }
+  .youtube:hover { transform:translateY(-2px); filter:brightness(1.05); }
+  .back {
+    width:100%; margin-top:10px; min-height:44px; border-radius:14px;
+    border:1px solid rgba(90,70,80,.13); background:white; color:#655a61; cursor:pointer;
+  }
+  .toast {
+    position:fixed; top:50%; left:50%; z-index:30; transform:translate(-50%,-50%) scale(.94);
+    opacity:0; pointer-events:none; padding:12px 18px; border-radius:999px;
+    background:rgba(50,42,48,.78); color:#fff; font-family:system-ui,sans-serif;
+    transition:.2s ease;
+  }
+  .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  /* Cinematic focus treatment */
+  #app canvas { transition: filter 1.0s ease; }
+  body.focus-mode #app canvas { filter: blur(2.6px) brightness(.88) saturate(.88); }
+  #focus-glow {
+    position:fixed; left:50%; top:43%; width:190px; height:190px; z-index:12;
+    transform:translate(-50%,-50%) scale(.45); opacity:0; pointer-events:none;
+    border-radius:50%; background:radial-gradient(circle,rgba(255,248,211,.88) 0%,rgba(255,220,142,.38) 24%,rgba(255,220,142,0) 72%);
+    filter:blur(5px); transition:opacity .8s ease, transform 1s cubic-bezier(.2,.8,.2,1);
+  }
+  #focus-glow.show { opacity:1; transform:translate(-50%,-50%) scale(1.2); }
+  #focus-title {
+    position:fixed; z-index:25; left:50%; top:13%; width:min(90vw,760px);
+    transform:translate(-50%,16px); opacity:0; pointer-events:none; text-align:center;
+    color:#a33c43; font-family:Georgia,serif; font-size:clamp(22px,3.1vw,40px);
+    line-height:1.35; text-shadow:0 2px 18px rgba(255,255,255,.95);
+    transition:opacity .8s ease, transform .8s ease;
+  }
+  #focus-title.show { opacity:1; transform:translate(-50%,0); }
+  #boot-error {
+    position:fixed; inset:0; z-index:100; display:none; place-items:center; padding:24px;
+    background:#fbf7f3; color:#392d30; font:15px/1.8 system-ui,sans-serif; text-align:center;
+  }
+  #boot-error.show { display:grid; }
+  #boot-error .error-card { width:min(560px,100%); padding:28px; border:1px solid #e4cfc4; border-radius:20px; background:#fff; box-shadow:0 18px 55px #46313a18; }
+  #boot-error h2 { margin:0 0 12px; color:#a33c43; font-family:Georgia,serif; font-size:27px; }
+  #boot-error code { background:#f5eee9; padding:2px 6px; border-radius:5px; }
+  @media (max-width:600px) {
+    .title { left:15px; top:12px; }
+    .title h1 { font-size:32px; }
+    .title .date { font-size:17px; }
+    .hint { bottom:12px; font-size:11px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="focus-glow" aria-hidden="true"></div>
+<div id="focus-title" aria-live="polite"></div>
+<div id="boot-error"><div class="error-card"><h2>3Dルームを読み込めませんでした</h2><p>Three.jsの読み込みに失敗しました。インターネット接続を確認して、もう一度開いてください。</p><p>WindowsではZIPを展開し、同梱の <code>START_ROOM.bat</code> をダブルクリックして開いてください。</p><p style="font-size:12px;color:#8a7770">ブラウザの file:// 直開きではなく、ローカルサーバー経由で起動します。</p></div></div>
+
+<div class="title">
+  <h1>ROOM Xmas</h1>
+  <div class="date">12 / 22</div>
+</div>
+
+<div class="hint" id="hint">花瓶・スケート靴・ツリーをタップしてみて</div>
+
+<div class="veil" id="veil">
+  <div class="card" role="dialog" aria-modal="true">
+    <button class="close" id="close" aria-label="閉じる">×</button>
+    <p class="eyebrow">A song for you</p>
+    <h2 id="songTitle"></h2>
+    <div class="meta">
+      <div class="row"><div class="label">アーティスト</div><div class="value" id="artist"></div></div>
+      <div class="row"><div class="label">作詞</div><div class="value" id="lyrics"></div></div>
+      <div class="row"><div class="label">作曲</div><div class="value" id="composer"></div></div>
+    </div>
+    <a id="youtube" class="youtube" href="#" target="_blank" rel="noopener noreferrer">
+      ▶ YouTubeで聴く
+    </a>
+    <button class="back" id="back">部屋に戻る</button>
+  </div>
+</div>
+<div class="toast" id="toast">もう一度タップすると戻れます</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}
+</script>
+<script type="module">
+let THREE, OrbitControls;
+try {
+  // Primary CDN, with a second CDN fallback. Errors are shown visibly instead of leaving a blank page.
+  try {
+    const base = "https://esm.sh/three@0.180.0";
+    const [threeModule, controlsModule] = await Promise.all([
+      import(base), import(base + "/examples/jsm/controls/OrbitControls.js")
+    ]);
+    THREE = threeModule; OrbitControls = controlsModule.OrbitControls;
+  } catch (primaryError) {
+    const [threeModule, controlsModule] = await Promise.all([
+      import("three"), import("https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js")
+    ]);
+    THREE = threeModule; OrbitControls = controlsModule.OrbitControls;
+  }
+} catch (error) {
+  document.querySelector("#boot-error").classList.add("show");
+  console.error("ROOM Xmas startup failed:", error);
+  throw error;
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xfaf9f7);
+scene.fog = new THREE.Fog(0xfaf9f7, 11, 23);
+
+const camera = new THREE.PerspectiveCamera(43, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(8.8, 7.2, 10.8);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:"high-performance" });
+} catch (webglError) {
+  document.querySelector("#boot-error").classList.add("show");
+  document.querySelector("#boot-error p").textContent = "このブラウザまたは端末でWebGLを起動できませんでした。Chrome/Edgeの最新版で開き、ハードウェアアクセラレーションを確認してください。";
+  console.error("ROOM Xmas WebGL initialization failed:", webglError);
+  throw webglError;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.querySelector("#app").appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = .075;
+controls.enablePan = false;
+controls.minDistance = 7;
+controls.maxDistance = 17;
+controls.minPolarAngle = .72;
+controls.maxPolarAngle = 1.32;
+controls.target.set(0, 2.1, 0);
+
+const mats = {
+  floor: new THREE.MeshStandardMaterial({color:0xcda88f, roughness:.82}),
+  floorDark: new THREE.MeshStandardMaterial({color:0x594d59, roughness:.92}),
+  wallA: new THREE.MeshStandardMaterial({color:0xe7c9b6, roughness:.9}),
+  wallB: new THREE.MeshStandardMaterial({color:0xc8c2c0, roughness:.9}),
+  wood: new THREE.MeshStandardMaterial({color:0x9b735a, roughness:.8}),
+  woodLight: new THREE.MeshStandardMaterial({color:0xb99476, roughness:.82}),
+  red: new THREE.MeshStandardMaterial({color:0xb96058, roughness:.72}),
+  redPink: new THREE.MeshStandardMaterial({color:0xd66d7c, roughness:.75}),
+  green: new THREE.MeshStandardMaterial({color:0x4c8c72, roughness:.85}),
+  gold: new THREE.MeshStandardMaterial({color:0xe9c75e, roughness:.45, metalness:.15}),
+  white: new THREE.MeshStandardMaterial({color:0xf6f2ea, roughness:.65}),
+  blue: new THREE.MeshStandardMaterial({color:0x8fa6dd, roughness:.65}),
+  black: new THREE.MeshStandardMaterial({color:0x2f2b31, roughness:.55}),
+  glass: new THREE.MeshStandardMaterial({color:0xd7e5ff, transparent:true, opacity:.55, roughness:.2}),
+  skin: new THREE.MeshStandardMaterial({color:0xd7b39b, roughness:.8}),
+};
+
+function box(w,h,d,mat,x,y,z, group=scene) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; group.add(m); return m;
+}
+function cyl(r,h,mat,x,y,z,seg=32, group=scene) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg), mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; group.add(m); return m;
+}
+function sphere(r,mat,x,y,z, group=scene) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r,24,16), mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; group.add(m); return m;
+}
+function plane(w,h,mat,x,y,z,rx=0,ry=0,rz=0, group=scene) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.receiveShadow=true; group.add(m); return m;
+}
+
+// More recognizable furniture helpers. These stay procedural so the room remains a single self-contained HTML file.
+function roundedBox(w,h,d,mat,x,y,z,r=.12,group=scene) {
+  const shape=new THREE.Shape();
+  const hw=w/2, hh=h/2, rr=Math.min(r,hw-.01,hh-.01);
+  shape.moveTo(-hw+rr,-hh); shape.lineTo(hw-rr,-hh); shape.quadraticCurveTo(hw,-hh,hw,-hh+rr);
+  shape.lineTo(hw,hh-rr); shape.quadraticCurveTo(hw,hh,hw-rr,hh);
+  shape.lineTo(-hw+rr,hh); shape.quadraticCurveTo(-hw,hh,-hw,hh-rr);
+  shape.lineTo(-hw,-hh+rr); shape.quadraticCurveTo(-hw,-hh,-hw+rr,-hh);
+  const g=new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:true,bevelSegments:2,steps:1,bevelSize:Math.min(r*.45,d*.18),bevelThickness:Math.min(r*.45,d*.18)});
+  g.center();
+  const m=new THREE.Mesh(g,mat); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; group.add(m); return m;
+}
+function lathe(points,mat,x,y,z,group=scene) {
+  const g=new THREE.LatheGeometry(points,48); const m=new THREE.Mesh(g,mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; group.add(m); return m;
+}
+function addLabelSprite(text, color="#ffffff") {
+  const c=document.createElement("canvas"), ctx=c.getContext("2d");
+  c.width=512; c.height=128; ctx.clearRect(0,0,c.width,c.height);
+  ctx.font="bold 48px Georgia"; ctx.fillStyle=color; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(text,256,64);
+  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
+  const mat=new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false});
+  const s=new THREE.Sprite(mat); s.scale.set(2.7,.67,1); return s;
+}
+
+// Room
+box(14,.55,12,mats.floorDark,0,-.28,0);
+for(let i=-6;i<7;i++) box(.92,.12,11.3,mats.floor, i*1.0,.02,0);
+box(14,8,.25,mats.wallA,0,4,-5.7);
+box(.25,8,11.4,mats.wallB,-6.85,4,0);
+box(.25,8,11.4,mats.wallB,6.85,4,0);
+box(14,.25,.25,mats.wallA,0,8,-5.7);
+box(14,.25,.25,mats.wallA,0,8,5.7);
+
+// Warm light
+const hemi = new THREE.HemisphereLight(0xfff4e9,0x6c6170,1.9); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffead5,3.4); key.position.set(-4,10,6); key.castShadow=true;
+key.shadow.mapSize.set(2048,2048); key.shadow.camera.left=-10; key.shadow.camera.right=10; key.shadow.camera.top=10; key.shadow.camera.bottom=-10; scene.add(key);
+const lamp = new THREE.PointLight(0xffb070,18,12,2); lamp.position.set(3.8,4.8,-2.8); scene.add(lamp);
+
+// Window
+box(2.8,2.5,.12,mats.blue,-2.4,5.1,-5.52);
+box(.13,2.6,.18,mats.wood,-2.4,5.1,-5.62);
+box(2.8,.13,.18,mats.wood,-2.4,5.1,-5.62);
+box(.10,2.5,.2,mats.wood,-2.4,5.1,-5.64);
+box(2.8,.10,.2,mats.wood,-2.4,5.1,-5.64);
+
+// Snowy moon glow
+const moon = new THREE.Mesh(new THREE.CircleGeometry(.48,32), new THREE.MeshBasicMaterial({color:0xffffee, transparent:true, opacity:.85}));
+moon.position.set(-3.15,5.45,-5.45); scene.add(moon);
+
+// Bookshelf
+const shelf = new THREE.Group(); shelf.position.set(-4.55,0,-4.95); scene.add(shelf);
+box(1.65,.18,.52,mats.woodLight,0,1.35,.25,shelf);
+box(1.65,.18,.52,mats.woodLight,0,3.0,.25,shelf);
+box(1.65,.18,.52,mats.woodLight,0,4.65,.25,shelf);
+box(.16,4.85,.50,mats.woodLight,-.74,2.45,.25,shelf);
+box(.16,4.85,.50,mats.woodLight,.74,2.45,.25,shelf);
+for(let i=0;i<7;i++) {
+  const colors=[0xc66f76,0x6d8cb8,0xd6b95f,0x7b9b7a,0xd28f67];
+  box(.22,1.05,.34,new THREE.MeshStandardMaterial({color:colors[i%colors.length],roughness:.8}),-.46+i*.15,1.85,.05,shelf);
+}
+for(let i=0;i<6;i++) {
+  const colors=[0xd0a55c,0x7795ba,0xc46b70,0x7e9e83];
+  box(.22,1.05,.34,new THREE.MeshStandardMaterial({color:colors[i%colors.length],roughness:.8}),-.43+i*.15,3.48,.05,shelf);
+}
+sphere(.32,mats.skin,-.28,4.98,.02,shelf); cyl(.25,.18,mats.red,-.28,5.27,.02,24,shelf);
+const hat = new THREE.Mesh(new THREE.ConeGeometry(.28,.5,24), mats.red); hat.position.set(-.28,5.58,.02); hat.castShadow=true; shelf.add(hat);
+sphere(.06,mats.white,-.28,5.86,.02,shelf);
+
+// Desk + chair
+box(3.0,.22,.85,mats.woodLight,1.0,3.0,-4.35);
+for(const x of [-.25,2.25]) for(const z of [-4.65,-4.05]) box(.14,3.0,.14,mats.wood, x,1.5,z);
+box(.9,1.7,.7,mats.woodLight,1.45,1.0,-4.35);
+box(.72,.08,.42,mats.gold,1.45,1.42,-3.98);
+box(.72,.08,.42,mats.gold,1.45,.73,-3.98);
+
+// chair
+box(1.0,.16,.9,mats.redPink,1.0,1.25,-2.95);
+box(.82,1.65,.16,mats.redPink,1.0,2.05,-3.35);
+for(const x of [.62,1.38]) for(const z of [-3.22,-2.68]) box(.10,1.25,.10,mats.wood, x,.63,z);
+
+// Vase target — ceramic tapered vase with neck, rim, shadowed interior and a small bouquet
+const vase = new THREE.Group(); vase.position.set(1.05,3.23,-4.35); scene.add(vase);
+const vaseMat=new THREE.MeshStandardMaterial({color:0xf4efe6,roughness:.48,metalness:.02});
+const vasePoints=[
+  new THREE.Vector2(.18,-.34),new THREE.Vector2(.29,-.24),new THREE.Vector2(.34,.16),
+  new THREE.Vector2(.27,.34),new THREE.Vector2(.22,.45),new THREE.Vector2(.22,.52)
+];
+lathe(vasePoints,vaseMat,0,0,0,vase);
+const vaseLip=lathe([new THREE.Vector2(.21,.48),new THREE.Vector2(.31,.49),new THREE.Vector2(.31,.56),new THREE.Vector2(.22,.57)],vaseMat,0,0,0,vase);
+const vaseInner=new THREE.Mesh(new THREE.CylinderGeometry(.205,.205,.045,40),new THREE.MeshStandardMaterial({color:0x6d5a53,roughness:.9})); vaseInner.position.y=.515; vase.add(vaseInner);
+const vaseBand=new THREE.Mesh(new THREE.TorusGeometry(.285,.018,10,40),new THREE.MeshStandardMaterial({color:0xe1d8cd,roughness:.4})); vaseBand.rotation.x=Math.PI/2; vaseBand.position.y=.18; vase.add(vaseBand);
+for(let i=0;i<5;i++){
+  const angle=-.72+i*.36; const stemLen=.92+(i%2)*.12;
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.026,.026,stemLen,10),new THREE.MeshStandardMaterial({color:0x71584d,roughness:.9}));
+  stem.position.set(Math.sin(angle)*.12,.98,Math.cos(angle)*.06); stem.rotation.z=angle*.32; stem.castShadow=true; vase.add(stem);
+  const bud=new THREE.Group(); bud.position.set(Math.sin(angle)*.22,1.47+(i%2)*.05,Math.cos(angle)*.06); bud.rotation.z=angle*.22; vase.add(bud);
+  for(let p=0;p<4;p++){ const petal=sphere(.095,mats.white,Math.cos(p*Math.PI/2)*.075,.03+Math.sin(p*Math.PI/2)*.02,Math.sin(p*Math.PI/2)*.055,bud); petal.scale.set(.55,1.45,.38); petal.rotation.z=p*Math.PI/2; }
+  sphere(.035,mats.gold,0,.0,0,bud);
+}
+vase.userData.song="anatae";
+
+// Fireplace — aligned straight with the back wall, same direction as the bookshelf and desk
+const fireplace=new THREE.Group();
+// 本棚・机と同じく、部屋の正面（+Z）を向く。カメラ側へ余計な斜め回転はさせない。
+fireplace.position.set(4.25,0,-5.25);
+fireplace.rotation.set(0,0,0);
+scene.add(fireplace);
+const brickMat=new THREE.MeshStandardMaterial({color:0xb85f57,roughness:.82});
+const brickDark=new THREE.MeshStandardMaterial({color:0x874944,roughness:.9});
+const stoneMat=new THREE.MeshStandardMaterial({color:0xd7b69d,roughness:.78});
+const mantelMat=new THREE.MeshStandardMaterial({color:0x8d624e,roughness:.72});
+
+// Main fireplace body and front columns
+roundedBox(3.0,3.45,.62,brickMat,0,1.78,.05,.16,fireplace);
+roundedBox(.34,2.45,.72,stoneMat,-1.10,1.35,.39,.08,fireplace);
+roundedBox(.34,2.45,.72,stoneMat,1.10,1.35,.39,.08,fireplace);
+
+// Front-facing firebox opening (+Z side)
+roundedBox(1.82,1.88,.12,brickDark,0,1.35,.38,.10,fireplace);
+roundedBox(1.54,1.58,.10,mats.black,0,1.30,.46,.10,fireplace);
+
+// Hearth projecting into the room
+roundedBox(2.35,.22,.82,stoneMat,0,.30,.54,.08,fireplace);
+roundedBox(3.30,.27,.82,mantelMat,0,3.57,.10,.12,fireplace);
+roundedBox(2.05,.17,.54,mantelMat,0,4.72,.10,.08,fireplace);
+
+// Decorative frame around the opening
+roundedBox(1.92,.16,.18,stoneMat,0,2.34,.49,.06,fireplace);
+roundedBox(.16,1.92,.18,stoneMat,-.91,1.36,.49,.06,fireplace);
+roundedBox(.16,1.92,.18,stoneMat,.91,1.36,.49,.06,fireplace);
+
+// Candle decorations
+for(let i=0;i<3;i++){
+  cyl(.075,.52,mats.white,-.78+i*.78,4.10,.12,20,fireplace);
+  sphere(.08,mats.gold,-.78+i*.78,4.40,.12,fireplace);
+}
+
+// Logs and glowing embers, now on the visible side
+const logMat=new THREE.MeshStandardMaterial({color:0x694236,roughness:.95});
+for(let i=0;i<3;i++){
+  const log=cyl(.11,1.15,logMat,-.42+i*.42,.68,.54,12,fireplace);
+  log.rotation.z=Math.PI/2+(i-1)*.18;
+}
+const emberMat=new THREE.MeshStandardMaterial({color:0xff7b32,emissive:0xff3d0a,emissiveIntensity:1.6,roughness:.4});
+for(let i=0;i<7;i++) sphere(.045,emberMat,-.58+i*.19,.72,.59,fireplace);
+
+// Animated flame
+const flameGroup=new THREE.Group(); flameGroup.position.set(0,.72,.62); fireplace.add(flameGroup);
+const flameMats=[
+ new THREE.MeshBasicMaterial({color:0xffc43d,transparent:true,opacity:.90,side:THREE.DoubleSide}),
+ new THREE.MeshBasicMaterial({color:0xff7a25,transparent:true,opacity:.72,side:THREE.DoubleSide}),
+ new THREE.MeshBasicMaterial({color:0xffeaa0,transparent:true,opacity:.88,side:THREE.DoubleSide})
+];
+function makeFlame(mat,scale,x,z){
+  const sh=new THREE.Shape();
+  sh.moveTo(0,0);
+  sh.bezierCurveTo(-.34,.25,-.30,.62,0,.98);
+  sh.bezierCurveTo(.03,.68,.34,.55,.20,.20);
+  sh.bezierCurveTo(.14,.08,.08,.03,0,0);
+  const g=new THREE.ShapeGeometry(sh);
+  const m=new THREE.Mesh(g,mat);
+  m.position.set(x,0,z);
+  m.scale.set(scale,scale,scale);
+  flameGroup.add(m);
+  return m;
+}
+const flameA=makeFlame(flameMats[0],.88,-.08,0);
+const flameB=makeFlame(flameMats[1],.72,.22,.025); flameB.rotation.y=.55;
+const flameC=makeFlame(flameMats[2],.48,-.02,.04); flameC.rotation.y=-.5;
+const fireLight=new THREE.PointLight(0xff6a2a,5.5,4.8,2);
+fireLight.position.set(0,1.28,.55);
+fireplace.add(fireLight);
+
+// Stockings — hanging on the camera-facing front
+for(const [x,c] of [[-.80,0xd76b70],[0.0,0x5ea9a0]]) {
+  const sockMat=new THREE.MeshStandardMaterial({color:c,roughness:.62});
+  const s=new THREE.Group(); s.position.set(x,2.76,.48); fireplace.add(s);
+  roundedBox(.30,.72,.28,sockMat,0,0,0,.08,s);
+  roundedBox(.30,.30,.28,sockMat,.10,-.29,.02,.10,s);
+  box(.34,.11,.31,mats.white,0,.40,.03,s);
+  s.rotation.z=x<0?-.10:.10;
+}
+
+// Christmas tree
+const tree = new THREE.Group(); tree.position.set(4.7,0,-2.9); scene.add(tree);
+cyl(.52,1.0,new THREE.MeshStandardMaterial({color:0x795844,roughness:.95}),0,.5,0);
+for(let i=0;i<3;i++){
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(1.65-i*.28,2.15,40),mats.green);
+  cone.position.y=1.65+i*1.18; cone.castShadow=true; tree.add(cone);
+}
+const star=new THREE.Mesh(new THREE.OctahedronGeometry(.28),mats.gold); star.position.y=5.15; star.castShadow=true; tree.add(star);
+const ornamentColors=[0xe9c75e,0xd66d7c,0x8ca9d7,0xf1eee5];
+for(let i=0;i<18;i++){
+  const a=i*2.4, y=1.15+(i%6)*.62, r=.85+((i%3)*.18);
+  sphere(.09,new THREE.MeshStandardMaterial({color:ornamentColors[i%4],roughness:.4}),Math.cos(a)*r,y,Math.sin(a)*r,tree);
+}
+tree.userData.song="christmas";
+
+// Rug
+const rug = new THREE.Mesh(new THREE.CylinderGeometry(2.15,2.15,.08,64),mats.redPink); rug.scale.z=.72; rug.position.set(0,.08,-.1); rug.receiveShadow=true; scene.add(rug);
+const rug2 = new THREE.Mesh(new THREE.CylinderGeometry(1.78,1.78,.085,64),mats.white); rug2.scale.z=.72; rug2.position.set(0,.13,-.1); rug2.receiveShadow=true; scene.add(rug2);
+
+// Skates
+const skates = new THREE.Group(); skates.position.set(.15,.17,.72); skates.rotation.y=-.25; scene.add(skates);
+function makeSkate(x){
+  const g=new THREE.Group(); g.position.x=x;
+  box(.42,.18,.92,mats.white,0,.18,0,g);
+  box(.30,.34,.42,mats.white,0,.39,.18,g);
+  box(.18,.18,.08,mats.redPink,0,.60,.12,g);
+  box(.45,.035,.90,mats.black,0,.05,0,g);
+  for(let i=-1;i<=1;i++) cyl(.06,.16,mats.white,i*.13,.0,-.22,16,g);
+  g.userData.song="subtitle"; skates.add(g);
+}
+makeSkate(-.25); makeSkate(.28);
+
+// CRT TV, floor-standing — rounded cabinet, convex glass, speaker grille, controls and antenna
+const tv = new THREE.Group(); tv.position.set(-3.65,.45,1.65); tv.rotation.y=-2.20; scene.add(tv);
+const tvBodyMat=new THREE.MeshStandardMaterial({color:0x24272a,roughness:.58});
+const tvSideMat=new THREE.MeshStandardMaterial({color:0x151719,roughness:.72});
+roundedBox(2.02,1.62,1.48,tvBodyMat,0,.92,0,.20,tv);
+roundedBox(1.72,1.20,.18,tvSideMat,0,1.05,-.76,.15,tv);
+// CRT screen: layered dark frame + bulged glass panel
+const screenGlassMat=new THREE.MeshPhysicalMaterial({color:0x152127,roughness:.18,metalness:.05,clearcoat:.35,clearcoatRoughness:.25,transparent:true,opacity:.96});
+const screen=new THREE.Mesh(new THREE.SphereGeometry(1,40,24,0,Math.PI*2,0,Math.PI),screenGlassMat);
+screen.scale.set(.78,.50,.18); screen.position.set(0,1.16,-.91); screen.rotation.x=Math.PI/2; screen.castShadow=true; tv.add(screen);
+const screenGlow=new THREE.Mesh(new THREE.PlaneGeometry(1.32,.74),new THREE.MeshBasicMaterial({color:0x42545a,transparent:true,opacity:.18})); screenGlow.position.set(0,1.16,-.935); tv.add(screenGlow);
+// speaker area
+roundedBox(.62,.54,.12,new THREE.MeshStandardMaterial({color:0x303235,roughness:.9}),-.52,.42,-.80,.06,tv);
+for(let i=0;i<6;i++) for(let j=0;j<5;j++) { const dot=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),new THREE.MeshStandardMaterial({color:0x111315,roughness:.9})); dot.position.set(-.76+i*.095,.24+j*.08,-.875); tv.add(dot); }
+// lower controls and cassette/VCR-like slot
+roundedBox(.70,.12,.08,mats.black,.48,.42,-.86,.03,tv);
+for(let i=0;i<4;i++) roundedBox(.075,.075,.08,[mats.gold,mats.redPink,mats.white,mats.gold][i],.18+i*.16,.65,-.86,.025,tv);
+roundedBox(.36,.16,.08,new THREE.MeshStandardMaterial({color:0x0d0f10,roughness:.7}),.53,.20,-.86,.025,tv);
+const led=new THREE.Mesh(new THREE.SphereGeometry(.035,12,8),new THREE.MeshBasicMaterial({color:0xd95b55})); led.position.set(.78,.20,-.91); tv.add(led);
+// feet
+for(const x of [-.70,.70]) roundedBox(.22,.30,.30,tvSideMat,x,.05,.25,.05,tv);
+// rabbit-ear antenna
+const antennaMat=new THREE.MeshStandardMaterial({color:0x8a8c8a,metalness:.65,roughness:.28});
+for(const x of [-.20,.20]) { const a=cyl(.025,.70,antennaMat,x,1.86,0,12,tv); a.rotation.z=x<0?-.42:.42; }
+cyl(.10,.10,tvSideMat,0,2.05,0,20,tv);
+
+// Toy piano — recognizable upright red toy piano with case, lid, keybed, black keys and legs
+const piano = new THREE.Group(); piano.position.set(-1.8,.12,2.65); piano.rotation.y=-2.20; scene.add(piano);
+const pianoRed=new THREE.MeshStandardMaterial({color:0xc9252d,roughness:.34,metalness:.05});
+const pianoDarkRed=new THREE.MeshStandardMaterial({color:0x8f1820,roughness:.45});
+const keyWhite=new THREE.MeshStandardMaterial({color:0xf8f4ea,roughness:.45});
+roundedBox(1.72,.52,.78,pianoRed,0,.66,0,.13,piano);
+// tall upright back panel and curved-looking side blocks
+roundedBox(1.52,1.18,.18,pianoRed,0,1.25,.25,.10,piano);
+roundedBox(.22,1.32,.78,pianoRed,-.78,1.18,0,.10,piano);
+roundedBox(.22,1.32,.78,pianoRed,.78,1.18,0,.10,piano);
+// top lid / music panel
+roundedBox(1.78,.16,.86,pianoRed,0,1.88,.03,.10,piano);
+// white keybed and individual keys
+roundedBox(1.38,.10,.53,keyWhite,0,.91,-.10,.025,piano);
+for(let i=0;i<9;i++) { const k=box(.145,.055,.46,keyWhite,-.58+i*.145,.985,-.12,piano); k.castShadow=true; }
+for(let i=0;i<8;i++) if([0,1,3,4,5].includes(i%7)) roundedBox(.075,.085,.26,new THREE.MeshStandardMaterial({color:0x17191b,roughness:.45}),-.505+i*.145,1.045,-.20,.02,piano);
+// front fascia and little toy badge
+roundedBox(1.28,.16,.08,pianoDarkRed,0,.48,-.39,.035,piano);
+const badge=addLabelSprite('Hope','#fff7f0'); badge.scale.set(1.0,.24,1); badge.position.set(0,1.52,.16); piano.add(badge);
+// legs / feet
+for(const x of [-.62,.62]) { roundedBox(.16,.68,.18,pianoRed,x,.28,.18,.05,piano); roundedBox(.26,.12,.42,pianoRed,x,.02,.12,.04,piano); }
+piano.userData.song=null;
+
+// Snow particles
+const snowGeo=new THREE.BufferGeometry();
+const snowN=260, arr=new Float32Array(snowN*3);
+for(let i=0;i<snowN;i++){ arr[i*3]=(Math.random()-.5)*22; arr[i*3+1]=Math.random()*10; arr[i*3+2]=(Math.random()-.5)*16; }
+snowGeo.setAttribute("position",new THREE.BufferAttribute(arr,3));
+const snow=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xffffff,size:.055,transparent:true,opacity:.75}));
+scene.add(snow);
+
+// Clickable invisible zones (large enough for touch)
+function hitbox(name, pos, size, song){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  m.position.set(...pos); m.userData.song=song; m.userData.name=name; scene.add(m); return m;
+}
+hitbox("vase",[1.05,3.6,-4.35],[1.0,2.1,1.0],"anatae");
+hitbox("skates",[.15,.55,.72],[1.1,.9,1.5],"subtitle");
+hitbox("tree",[4.7,2.7,-2.9],[3.6,5.4,3.0],"christmas");
+
+const songData = {
+  anatae:{
+    title:"あなたへ〜旅立ちに寄せるメッセージ〜",
+    artist:"合唱曲",
+    lyrics:"筒井雅子",
+    composer:"筒井雅子",
+    url:"https://www.youtube.com/watch?v=o-hg28AvOEM",
+    focus:new THREE.Vector3(1.05,3.0,-4.2)
+  },
+  subtitle:{
+    title:"Subtitle",
+    artist:"Official髭男dism",
+    lyrics:"藤原聡",
+    composer:"藤原聡",
+    url:"https://www.youtube.com/watch?v=hN5MBlGv2Ac",
+    focus:new THREE.Vector3(.15,1.0,.72)
+  },
+  christmas:{
+    title:"All I Want for Christmas Is You",
+    artist:"Mariah Carey",
+    lyrics:"Mariah Carey / Walter Afanasieff",
+    composer:"Mariah Carey / Walter Afanasieff",
+    url:"https://www.youtube.com/watch?v=yXQViqx6GMY",
+    focus:new THREE.Vector3(4.7,2.6,-2.9)
+  }
+};
+
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+let activeSong=null, moving=false;
+let cameraTween=null;
+const veil=document.querySelector("#veil"), close=document.querySelector("#close"), back=document.querySelector("#back");
+const titleEl=document.querySelector("#songTitle"), lyricsEl=document.querySelector("#lyrics"), composerEl=document.querySelector("#composer"), yt=document.querySelector("#youtube");
+const hint=document.querySelector("#hint"), toast=document.querySelector("#toast");
+
+let focusTimers=[];
+const focusGlow=document.querySelector("#focus-glow");
+const focusTitle=document.querySelector("#focus-title");
+function clearFocusTimers(){ focusTimers.forEach(clearTimeout); focusTimers=[]; }
+function openSong(key){
+  const d=songData[key]; if(!d || moving) return;
+  clearFocusTimers();
+  activeSong=key; moving=true; controls.enabled=false;
+  titleEl.textContent=d.title; lyricsEl.textContent=d.lyrics; composerEl.textContent=d.composer;
+  document.querySelector("#artist").textContent=d.artist;
+  yt.href=d.url;
+  hint.classList.add("hide");
+  focusTitle.textContent=d.title;
+  focusTitle.classList.remove("show"); focusGlow.classList.remove("show");
+  const fromPos=camera.position.clone(), fromTarget=controls.target.clone();
+  const toTarget=d.focus.clone();
+  const dir=new THREE.Vector3().subVectors(fromPos,fromTarget).normalize();
+  const toPos=toTarget.clone().add(dir.multiplyScalar(key==="christmas"?5.0:3.8)).add(new THREE.Vector3(0,.32,0));
+  const start=performance.now(), dur=1250;
+  cameraTween={start,dur,fromPos,fromTarget,toPos,toTarget};
+}
+function closeSong(){
+  clearFocusTimers();
+  veil.classList.remove("show");
+  focusTitle.classList.remove("show"); focusGlow.classList.remove("show");
+  document.body.classList.remove("focus-mode");
+  const fromPos=camera.position.clone(), fromTarget=controls.target.clone();
+  const toTarget=new THREE.Vector3(0,2.1,0), toPos=new THREE.Vector3(8.8,7.2,10.8);
+  const start=performance.now(), dur=1000;
+  cameraTween={start,dur,fromPos,fromTarget,toPos,toTarget,closing:true};
+  moving=true; controls.enabled=false; activeSong=null;
+}
+function finishTween(tw){
+  camera.position.copy(tw.toPos); controls.target.copy(tw.toTarget);
+  moving=false; controls.enabled=!!tw.closing;
+  if(!tw.closing){
+    document.body.classList.add("focus-mode");
+    focusTimers.push(setTimeout(()=>focusGlow.classList.add("show"),180));
+    focusTimers.push(setTimeout(()=>focusTitle.classList.add("show"),520));
+    focusTimers.push(setTimeout(()=>{ veil.classList.add("show"); focusTitle.classList.remove("show"); },1250));
+  } else {
+    hint.classList.remove("hide");
+  }
+}
+close.onclick=closeSong; back.onclick=closeSong;
+addEventListener("keydown",e=>{ if(e.key==="Escape" && (activeSong || veil.classList.contains("show"))) closeSong(); });
+veil.addEventListener("click",e=>{ if(e.target===veil) closeSong(); });
+
+function pointerFromEvent(e){
+  const rect=renderer.domElement.getBoundingClientRect();
+  pointer.x=((e.clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;
+}
+let pointerDownAt=null;
+renderer.domElement.addEventListener("pointerdown",e=>{
+  pointerDownAt={x:e.clientX,y:e.clientY,id:e.pointerId};
+});
+renderer.domElement.addEventListener("pointerup",e=>{
+  if(!pointerDownAt || pointerDownAt.id!==e.pointerId) return;
+  const moved=Math.hypot(e.clientX-pointerDownAt.x,e.clientY-pointerDownAt.y);
+  pointerDownAt=null;
+  if(moved>8 || moving || veil.classList.contains("show")) return;
+  pointerFromEvent(e);
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(scene.children,true);
+  for(const h of hits){
+    if(h.object.userData?.song){ openSong(h.object.userData.song); return; }
+  }
+});
+renderer.domElement.addEventListener("pointercancel",()=>{pointerDownAt=null;});
+renderer.domElement.addEventListener("pointermove",e=>{
+  if(moving || veil.classList.contains("show")) { renderer.domElement.style.cursor="default"; return; }
+  pointerFromEvent(e); raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObjects(scene.children,true).find(x=>x.object.userData?.song);
+  renderer.domElement.style.cursor=hit?"pointer":"default";
+});
+
+function animate(now){
+  requestAnimationFrame(animate);
+  // Gentle fireplace flicker; everything else in the room remains unchanged.
+  if(flameGroup){
+    const t=now*.006;
+    flameA.scale.x=.88 + Math.sin(t*1.7)*.10; flameA.scale.y=.88 + Math.sin(t*2.1)*.07; flameA.position.x=-.08 + Math.sin(t*1.3)*.035;
+    flameB.scale.x=.72 + Math.sin(t*2.4+1.4)*.09; flameB.scale.y=.72 + Math.sin(t*1.9+.7)*.06; flameB.position.x=.22 + Math.sin(t*1.8)*.04;
+    flameC.scale.x=.48 + Math.sin(t*2.9+2.1)*.07; flameC.scale.y=.48 + Math.sin(t*2.5)*.05;
+    fireLight.intensity=5.0 + Math.sin(t*2.8)*.8 + Math.sin(t*5.1)*.35;
+  }
+  if(cameraTween){
+    const tw=cameraTween, p=Math.min(1,(now-tw.start)/tw.dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    camera.position.lerpVectors(tw.fromPos,tw.toPos,e);
+    controls.target.lerpVectors(tw.fromTarget,tw.toTarget,e);
+    if(p>=1){ cameraTween=null; finishTween(tw); }
+  } else controls.update();
+  snow.rotation.y += .00025;
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
